@@ -7,9 +7,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.restdocs.constraints.ConstraintDescriptions;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -19,9 +22,15 @@ import static org.hamcrest.core.Is.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+//import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
+import static org.springframework.restdocs.payload.PayloadDocumentation.*;
+import static org.springframework.restdocs.snippet.Attributes.key;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+//@SpringBootTest
+@AutoConfigureRestDocs
 @RunWith(SpringRunner.class)
 @WebMvcTest(BeerController.class)
 public class BeerControllerTest {
@@ -36,9 +45,12 @@ public class BeerControllerTest {
     ObjectMapper objectMapper;
 
     BeerDto validBeer;
+    ConstraintDescriptions constraintDescriptions;
 
     @Before
     public void setUp() {
+        constraintDescriptions = new ConstraintDescriptions(BeerDto.class);
+
         validBeer = BeerDto.builder().id(UUID.randomUUID())
                 .beerName("Beer1")
                 .beerStyle("PALE_ALE")
@@ -48,13 +60,36 @@ public class BeerControllerTest {
 
     @Test
     public void getBeer() throws Exception {
+
         given(beerService.getBeerById(any(UUID.class))).willReturn(validBeer);
 
-        mockMvc.perform(get("/api/v1/beer/" + validBeer.getId().toString()).accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/v1/beer/{beerId}", validBeer.getId()).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(jsonPath("$.id", is(validBeer.getId().toString())))
-                .andExpect(jsonPath("$.beerName", is("Beer1")));
+                .andExpect(jsonPath("$.beerName", is("Beer1")))
+                .andDo(document("v1/get-beer",
+                        responseFields(
+                                fieldWithPath("id").description("Beer ID")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("id"))),
+                                fieldWithPath("beerName").description("Beer Name")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("beerName"))),
+                                fieldWithPath("beerStyle").description("Beer Style")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("beerStyle"))),
+                                fieldWithPath("upc").description("UPC")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("upc"))),
+                                fieldWithPath("createdDate").description("Date of Creation")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("createdDate"))),
+                                fieldWithPath("lastUpdatedDate").description("Date of Last Update")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("lastUpdatedDate")))
+                        ))
+                );
     }
 
     @Test
@@ -70,8 +105,23 @@ public class BeerControllerTest {
         mockMvc.perform(post("/api/v1/beer/")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(beerDtoJson))
-                .andExpect(status().isCreated());
-
+                .andExpect(status().isCreated())
+                .andDo(document("v1/post-beer",
+                        requestFields(
+                                fieldWithPath("id").ignored(),
+                                fieldWithPath("beerName").description("Beer Name")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("beerName"))),
+                                fieldWithPath("beerStyle").description("Beer Style")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("beerStyle"))),
+                                fieldWithPath("upc").description("UPC")
+                                        .attributes(key("constraints")
+                                                .value(constraintDescriptions.descriptionsForProperty("upc"))),
+                                fieldWithPath("createdDate").ignored(),
+                                fieldWithPath("lastUpdatedDate").ignored()
+                        ))
+                );
     }
 
     @Test
